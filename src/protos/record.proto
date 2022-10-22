@@ -1,0 +1,5 @@
+message Record {
+  optional string name = 1;
+  optional string url = 2;
+  optional string owner = 3;
+}
