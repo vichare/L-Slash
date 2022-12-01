@@ -1,5 +1,6 @@
 [package]
 name = "l_slash"
+default-run = "l_slash"
 version = "0.1.0"
 authors = ["vichare <vicharewang@gmail.com>"]
 edition = "2018"
@@ -8,9 +9,20 @@ edition = "2018"
 
 [dependencies]
 protobuf = "3.2.0"
+clap = { version = "4.0", features = ["derive"] }
+# anyhow = "1.0"
+anyhow = { version = "1.0", default-features = false }
+actix-web = "4"
+url = "2.x"
+serde = { version = "1.x", features = ["derive"] }
 
 # Storage
 sled = "0.34.7"
 
+
 [build-dependencies]
 protobuf-codegen = "3.2.0"
+
+[[bin]]
+name = "cli"
+path = "src/cli/main.rs"

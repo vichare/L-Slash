@@ -1,2 +1,2 @@
-mod record_store;
-mod sled_store;
+pub mod record_store;
+pub mod sled_store;

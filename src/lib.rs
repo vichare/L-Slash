@@ -1,3 +1,4 @@
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
-mod storage;
+pub mod storage;
+pub mod server;
