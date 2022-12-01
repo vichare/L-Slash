@@ -39,7 +39,13 @@ impl Server {
             sled_store: SledStore::new(path).unwrap(),
         }
     }
-    pub fn handle_alias(&self, alias: &str) -> HttpResponse {
+
+    pub fn handle_alias(
+        &self,
+        alias: &str,
+        relative_path: Option<&str>,
+        query_string: &str,
+    ) -> HttpResponse {
         let result = self.sled_store.look_up(alias);
         let record = match result {
             Ok(Some(record)) => record,
@@ -47,11 +53,28 @@ impl Server {
             // TODO: Log error: not able to retrieve record.
             Err(_) => return self.handle_non_exist(alias),
         };
-        let url = match Url::from_str(record.url()) {
+        let base_url = match Url::from_str(record.url()) {
             Ok(url) => url,
             // TODO: Log internal error: invalid url record.
             Err(_) => return self.handle_non_exist(alias),
         };
+        let url = match relative_path.map(|r| base_url.join(r)) {
+            Some(Ok(url)) => url,
+            Some(Err(_)) => base_url.clone(),
+            None => base_url.clone(),
+            // TODO: Log internal error: failed to join relative path.
+        };
+        let url = match url.join(&format!("?{query_string}")) {
+            Ok(_) if query_string.is_empty() => base_url.clone(),
+            Ok(url) => url,
+            // TODO: Log internal error: failed to join relative path.
+            Err(_) => base_url.clone(),
+        };
+        eprintln!(
+            "Join {base_url} with {relative_path:?} and {query_string:?} is {url}",
+            base_url = base_url.as_str(),
+            url = url.as_str()
+        );
         Self::temporary_redirect(url.as_str())
     }
 
@@ -80,7 +103,7 @@ impl Server {
 
     // Use 302 SeeOther if we don't want to redirect POST values.
     fn see_other(url: &str) -> HttpResponse {
-        HttpResponse::TemporaryRedirect()
+        HttpResponse::SeeOther()
             .append_header((actix_web::http::header::LOCATION, url))
             .finish()
     }
