@@ -5,15 +5,21 @@ use crate::record::Record;
 
 use crate::storage::record_store::RecordStore;
 use crate::storage::sled_store::SledStore;
+use actix_web::body::MessageBody;
 use actix_web::HttpResponse;
 use serde::Deserialize;
 use url::Url;
 
+/*
+const ERROR_HTML: &str = r#"
+"#;
+*/
+
 const FORM_HTML: &str = r#"
 <form action="/_/" method="post">
-  <label for="fname">Alias:</label><br />
+  <label for="alias">Alias:</label><br />
   <input type="text" id="alias" name="alias" value=""><br />
-  <label for="iname">Url:</label><br />
+  <label for="url">Url:</label><br />
   <input type="text" id="url" name="url" value=""><br /><br />
   <input type="submit" value="Submit">
 </form>
@@ -22,10 +28,26 @@ document.getElementById("alias").value = window.location.search.substr(1);
 </script>
 "#;
 
+const LOG_IN_HTML: &str = r#"
+<form action="/_login/" method="post">
+  <label for="fname">User Name:</label><br />
+  <input type="text" id="username" name="username" value=""><br />
+  <label for="password">Password:</label><br />
+  <input type="password" id="password" name="password" value=""><br /><br />
+  <input type="submit" value="Submit">
+</form>
+"#;
+
 #[derive(Deserialize)]
 pub struct InsertRequest {
     alias: String,
     url: String,
+}
+
+#[derive(Deserialize)]
+pub struct LogInRequest {
+    username: String,
+    password: String,
 }
 
 pub struct Server {
@@ -91,8 +113,29 @@ impl Server {
         Self::see_other(record.url())
     }
 
-    pub fn handle_form(&self) -> HttpResponse {
-        HttpResponse::Ok().content_type("text/html").body(FORM_HTML)
+    pub fn handle_login(&self, login_request: LogInRequest) -> HttpResponse {
+        // TODO: handle login
+        Self::see_other("/")
+    }
+
+    pub fn handle_form() -> HttpResponse {
+        //HttpResponse::Ok().content_type("text/html").body(FORM_HTML)
+        Self::handle_html(FORM_HTML)
+    }
+
+    pub fn handle_login_form() -> HttpResponse {
+        Self::handle_html(LOG_IN_HTML)
+    }
+
+    /*
+    fn handle_error() -> HttpResponse {
+        HttpResponse::InternalServerError().body(ERROR_HTML)
+    }
+    */
+
+    fn handle_html<B: 'static + MessageBody>(html_body: B) -> HttpResponse {
+        // TODO: log error.
+        HttpResponse::Ok().content_type("text/html").body(html_body)
     }
 
     fn temporary_redirect(url: &str) -> HttpResponse {

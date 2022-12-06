@@ -8,6 +8,8 @@ fn main() {
         .includes(&["src/protos"])
         // Inputs must reside in some of include paths.
         .input("src/protos/record.proto")
+        .input("src/protos/session.proto")
+        .input("src/protos/user.proto")
         // Specify output directory relative to Cargo output directory.
         .cargo_out_dir("protos")
         .run_from_script();

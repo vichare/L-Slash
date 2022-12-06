@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+import "google/protobuf/timestamp.proto";
+
+message Session {
+    // Unique identifier of the session.
+    optional bytes key = 1;
+    optional bytes secret = 2;
+    optional int64 user_id = 3;
+    optional google.protobuf.Timestamp expire_time = 4;
+    optional google.protobuf.Timestamp rotation_time = 5;
+}

@@ -1,5 +1,8 @@
+syntax = "proto2";
+
 message Record {
-  optional string name = 1;
-  optional string url = 2;
-  optional string owner = 3;
+  optional int64 id = 1;
+  optional string name = 2;
+  optional string url = 3;
+  optional string owner = 4;
 }

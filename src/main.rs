@@ -1,23 +1,5 @@
-// include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
-
-/*
-use l_slash::record::Record;
-use l_slash::storage::record_store::RecordStore;
-use l_slash::storage::sled_store::SledStore;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut record = Record::new();
-    record.set_name(String::from("google"));
-    record.set_url(String::from("https://google.com/"));
-
-    let db = SledStore::new(".")?;
-    db.insert(&record)?;
-    let result = db.look_up("google")?;
-    println!("{:?}", result);
-    Ok(())
-}
-*/
 use actix_web::get;
+use actix_web::middleware::Logger;
 use actix_web::post;
 use actix_web::web;
 use actix_web::App;
@@ -25,11 +7,12 @@ use actix_web::HttpRequest;
 use actix_web::HttpServer;
 use actix_web::Responder;
 use l_slash::server::server::InsertRequest;
+use l_slash::server::server::LogInRequest;
 use l_slash::server::server::Server;
 
 #[get("/")]
-async fn form(server: web::Data<Server>) -> impl Responder {
-    server.handle_form()
+async fn form() -> impl Responder {
+    Server::handle_form()
 }
 
 #[get("/{alias}")]
@@ -60,12 +43,28 @@ async fn insert(
     server.handle_insert(insert_request.into_inner())
 }
 
+#[get("/_login/")]
+async fn login_form() -> impl Responder {
+    Server::handle_login_form()
+}
+
+#[post("/_login/")]
+async fn login(
+    login_request: web::Form<LogInRequest>,
+    server: web::Data<Server>,
+) -> impl Responder {
+    server.handle_login(login_request.into_inner())
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let server = web::Data::new(Server::new("sled_data"));
     HttpServer::new(move || {
         App::new()
             .app_data(server.clone())
+            .wrap(Logger::default())
+            .service(login_form)
+            .service(login)
             .service(form)
             .service(redirect)
             .service(redirect_with_relative)
