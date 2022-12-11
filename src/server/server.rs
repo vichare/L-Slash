@@ -2,12 +2,15 @@ use std::path::Path;
 use std::str::FromStr;
 
 use crate::record::Record;
+//use crate::server::auth;
 
 use crate::storage::record_store::RecordStore;
 use crate::storage::sled_store::SledStore;
 use actix_web::body::MessageBody;
+//use actix_web::cookie::Cookie;
 use actix_web::HttpResponse;
 use serde::Deserialize;
+use serde::Serialize;
 use url::Url;
 
 /*
@@ -29,7 +32,7 @@ document.getElementById("alias").value = window.location.search.substr(1);
 "#;
 
 const LOG_IN_HTML: &str = r#"
-<form action="/_login/" method="post">
+<form action="/_login" method="post">
   <label for="fname">User Name:</label><br />
   <input type="text" id="username" name="username" value=""><br />
   <label for="password">Password:</label><br />
@@ -37,6 +40,23 @@ const LOG_IN_HTML: &str = r#"
   <input type="submit" value="Submit">
 </form>
 "#;
+
+//pub struct ServerConfig {
+//    key: [u8; 32],
+//    db_path: String,
+//    /*
+//    In dev mode:
+//      - cookie is not secure;
+//      - debug info;
+//    */
+//    dev_mode: bool,
+//}
+
+#[derive(Clone, Debug, Default, Deserialize, Hash, PartialEq, PartialOrd, Serialize)]
+pub struct LoginInfoCookie {
+    key: String,
+    secret: String,
+}
 
 #[derive(Deserialize)]
 pub struct InsertRequest {
@@ -46,12 +66,12 @@ pub struct InsertRequest {
 
 #[derive(Deserialize)]
 pub struct LogInRequest {
-    username: String,
-    password: String,
+    pub username: String,
+    pub password: String,
 }
 
 pub struct Server {
-    sled_store: SledStore,
+    pub sled_store: SledStore,
 }
 
 impl Server {
@@ -92,11 +112,6 @@ impl Server {
             // TODO: Log internal error: failed to join relative path.
             Err(_) => base_url.clone(),
         };
-        eprintln!(
-            "Join {base_url} with {relative_path:?} and {query_string:?} is {url}",
-            base_url = base_url.as_str(),
-            url = url.as_str()
-        );
         Self::temporary_redirect(url.as_str())
     }
 
@@ -114,12 +129,16 @@ impl Server {
     }
 
     pub fn handle_login(&self, login_request: LogInRequest) -> HttpResponse {
-        // TODO: handle login
-        Self::see_other("/")
+        match self.validate_login(login_request) {
+            Some(cookie) => HttpResponse::SeeOther()
+                .append_header((actix_web::http::header::LOCATION, "/"))
+                .cookie(cookie)
+                .finish(),
+            None => Self::handle_login_form(),
+        }
     }
 
     pub fn handle_form() -> HttpResponse {
-        //HttpResponse::Ok().content_type("text/html").body(FORM_HTML)
         Self::handle_html(FORM_HTML)
     }
 
@@ -127,13 +146,7 @@ impl Server {
         Self::handle_html(LOG_IN_HTML)
     }
 
-    /*
-    fn handle_error() -> HttpResponse {
-        HttpResponse::InternalServerError().body(ERROR_HTML)
-    }
-    */
-
-    fn handle_html<B: 'static + MessageBody>(html_body: B) -> HttpResponse {
+    pub fn handle_html<B: 'static + MessageBody>(html_body: B) -> HttpResponse {
         // TODO: log error.
         HttpResponse::Ok().content_type("text/html").body(html_body)
     }

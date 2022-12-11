@@ -5,8 +5,22 @@ import "google/protobuf/timestamp.proto";
 message Session {
     // Unique identifier of the session.
     optional bytes key = 1;
+
+    // The secret bytes.
     optional bytes secret = 2;
-    optional int64 user_id = 3;
-    optional google.protobuf.Timestamp expire_time = 4;
-    optional google.protobuf.Timestamp rotation_time = 5;
+
+    // The secret bytes that's still useful before expired.
+    optional bytes previous_secret = 3;
+
+    // User name of this session.
+    optional string user_name = 4;
+
+    // When this session expires if before rotation.
+    optional google.protobuf.Timestamp expire_time = 5;
+
+    // The intervel since this session needs rotation.
+    optional google.protobuf.Timestamp rotation_time = 6;
+
+    // How long since the previous secret could continue to use.
+    optional google.protobuf.Timestamp previous_secret_expire_time = 7;
 }

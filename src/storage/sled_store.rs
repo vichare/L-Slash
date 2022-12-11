@@ -35,7 +35,7 @@ impl SledStore {
         )
     }
 
-    pub fn look_up_session(&self, session_key: &str) -> Result<Option<Session>, Box<dyn Error>> {
+    pub fn look_up_session(&self, session_key: &[u8]) -> Result<Option<Session>, Box<dyn Error>> {
         Self::look_up_protobuf(&(self.db.open_tree(SESSION_TREE_NAME)?), session_key)
     }
 
@@ -47,9 +47,9 @@ impl SledStore {
         )
     }
 
-    pub fn look_up_protobuf<ProtoType: Message>(
+    pub fn look_up_protobuf<Key: AsRef<[u8]>, ProtoType: Message>(
         tree: &sled::Tree,
-        name: &str,
+        name: Key,
     ) -> Result<Option<ProtoType>, Box<dyn Error>> {
         let maybe_buffer = tree.get(name)?;
         maybe_buffer
