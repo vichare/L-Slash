@@ -112,12 +112,13 @@ fn decode_cookie_str(cookie_str: &str) -> Session {
     session
 }
 
-fn calculate_sha256(input: impl AsRef<[u8]>) -> Vec<u8> {
+fn calculate_sha256(input: impl AsRef<[u8]>, salt: impl AsRef<[u8]>) -> Vec<u8> {
     // Create a SHA256 hasher
     let mut hasher = Sha256::new();
 
     // Update the hasher with the input bytes
     hasher.update(input);
+    hasher.update(salt);
 
     // Calculate the SHA256 hash of the input
     hasher.finalize().to_vec()
@@ -130,7 +131,7 @@ impl Server {
         let mut user = User::new();
         user.set_user_name(user_name);
         user.set_email(email);
-        user.set_password_sha256(calculate_sha256(password));
+        user.set_password_sha256(calculate_sha256(password, "".as_bytes()));
         user
     }
 
@@ -272,7 +273,7 @@ impl Server {
             Some(user) => user,
             None => return None,
         };
-        let pass = calculate_sha256(req.password);
+        let pass = calculate_sha256(req.password, "".as_bytes());
         if pass != user.password_sha256() {
             //eprintln!("password incorrect! {pass:?} != {input:?}", input = user.password_sha256());
             return None;
