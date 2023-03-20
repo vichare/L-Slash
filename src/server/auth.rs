@@ -3,7 +3,8 @@ use crate::server::server::Server;
 use crate::session::Session;
 use crate::user::User;
 use actix_web::cookie::Cookie;
-use base64::URL_SAFE_NO_PAD;
+//use base64::URL_SAFE_NO_PAD;
+use base64::{engine::general_purpose, Engine as _};
 use chrono::DateTime;
 use chrono::Duration;
 use chrono::Utc;
@@ -89,8 +90,8 @@ fn get_timestamp_from_protobuf(t: &Timestamp) -> DateTime<Utc> {
 }
 
 fn generate_cookie_str(session: &Session) -> String {
-    let key_encode = base64::encode_config(session.key(), base64::URL_SAFE_NO_PAD);
-    let secret_encode = base64::encode_config(session.secret(), base64::URL_SAFE_NO_PAD);
+    let key_encode = general_purpose::URL_SAFE_NO_PAD.encode(session.key());
+    let secret_encode = general_purpose::URL_SAFE_NO_PAD.encode(session.secret());
     format!("{key_encode}/{secret_encode}")
 }
 
@@ -102,9 +103,11 @@ fn decode_cookie_str(cookie_str: &str) -> Session {
 
     // Base64-decode the two pieces, using the URL-safe alphabet without padding
     let first_decoded =
-        base64::decode_config(first, URL_SAFE_NO_PAD).unwrap_or_else(|_| Vec::new());
-    let second_decoded =
-        base64::decode_config(second, URL_SAFE_NO_PAD).unwrap_or_else(|_| Vec::new());
+        //base64::decode_config(first, URL_SAFE_NO_PAD).unwrap_or_else(|_| Vec::new());
+        general_purpose::URL_SAFE_NO_PAD.decode(first).unwrap_or_else(|_| Vec::new());
+    let second_decoded = general_purpose::URL_SAFE_NO_PAD
+        .decode(second)
+        .unwrap_or_else(|_| Vec::new());
 
     *session.mut_key() = first_decoded;
     *session.mut_secret() = second_decoded;
