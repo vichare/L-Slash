@@ -1,14 +1,20 @@
 //use actix_session::CookieSession;
 //use actix_session::Session;
 use actix_files::NamedFile;
+use actix_web::body::BoxBody;
 //use actix_session::storage::CookieSessionStore;
 //use actix_session::Session;
 //use actix_session::SessionMiddleware;
+//use actix_web::body::MessageBody;
+use actix_web::dev;
 use actix_web::get;
-use actix_web::middleware::Logger;
+use actix_web::middleware;
 use actix_web::post;
 use actix_web::web;
 use actix_web::App;
+use actix_web::Error;
+//use actix_web::FromRequest;
+use actix_web::HttpMessage;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::HttpServer;
@@ -19,6 +25,69 @@ use l_slash::server::server::Server;
 use serde::Deserialize;
 
 //const SESSION_SIGNING_KEY: &[u8] = &[0; 64];
+
+// pub struct Auth;
+//
+// impl FromRequest for Auth {
+//     type Error = actix_web::Error;
+//     type Future = std::future::Ready<Result<Self, Error>>;
+//
+//     fn from_request(req: &HttpRequest, _: &mut dev::Payload) -> Self::Future {
+//         let server = req.app_data::<web::Data<Server>>().unwrap();
+//         if let Some(cookie) = req.cookie("auth") {
+//             if server.validate_session(cookie).is_some() {
+//                 return std::future::ready(Ok(Auth));
+//             }
+//         }
+//
+//         let response = HttpResponse::SeeOther()
+//             .append_header(("LOCATION", "/_login"))
+//             .finish();
+//         std::future::ready(Err(response.into()))
+//     }
+// }
+
+async fn auth_middleware(
+    req: dev::ServiceRequest,
+    next: middleware::Next<BoxBody>,
+) -> Result<dev::ServiceResponse<BoxBody>, Error> {
+    let path = req.path();
+    if path == "/_login" || path == "/favicon.ico" {
+        return next.call(req).await;
+    }
+    let server = match req.app_data::<web::Data<Server>>() {
+        Some(d) => d.clone(),
+        None => {
+            // Server not configured: return 500.
+            let rsp = HttpResponse::InternalServerError().body("Server not configured");
+            return Ok(req.into_response(rsp));
+        }
+    };
+    let validate_result = req
+        .cookie("auth")
+        .and_then(|cookie| server.validate_session(cookie));
+
+    let (session, maybe_cookie) = match validate_result {
+        None => {
+            // If no auth cookie, redirect to login page.
+            let rsp = HttpResponse::SeeOther()
+                .append_header(("LOCATION", "/_login"))
+                .finish();
+            return Ok(req.into_response(rsp));
+        }
+        Some(r) => r,
+    };
+    req.extensions_mut().insert(session);
+
+    let mut rsp = next.call(req).await?;
+
+    // If need to update cookie:
+    if let Some(cookie) = maybe_cookie {
+        rsp.response_mut().add_cookie(&cookie)?;
+    }
+
+    Ok(rsp)
+}
 
 #[get("/")]
 async fn form() -> impl Responder {
@@ -94,13 +163,17 @@ async fn debug(
         None => (),
     }
 
-    /*
     if action.action == Some(String::from("invalidate_session")) {
-        if let Some(s) = session.as_ref() {
+        if let Some(s) = maybe_session.as_ref() {
             server.invalidate_session(s.key());
         }
     }
-    */
+
+    if action.action == Some(String::from("get_user")) {
+        if let Some(s) = maybe_session.as_ref() {
+            println!("{:?}", server.sled_store.look_up_user(s.user_name()));
+        }
+    }
 
     let body = format!(
         r#"
@@ -139,6 +212,9 @@ async fn login(
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let server = web::Data::new(Server::new("sled_data"));
+    let _ = server
+        .sled_store
+        .insert_user(&Server::generate_admin_user());
     /*
     let cookie_session_middleware = CookieSessionBackend::signed(&[0; 32])
         .secure(false)
@@ -156,7 +232,8 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(server.clone())
-            .wrap(Logger::default())
+            .wrap(middleware::from_fn(auth_middleware))
+            .wrap(middleware::Logger::default())
             .service(favicon)
             .service(debug)
             .service(login_form)

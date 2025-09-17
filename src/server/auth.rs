@@ -9,7 +9,7 @@ use chrono::DateTime;
 use chrono::Duration;
 use chrono::Utc;
 use protobuf::well_known_types::timestamp::Timestamp;
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::Rng;
 use std::time::UNIX_EPOCH;
 
@@ -30,15 +30,15 @@ fn time_passed_proto_ts(ts: Option<&Timestamp>) -> bool {
 
 impl crate::session::Session {
     fn generate_key(&mut self) {
-        let key: Vec<u8> = rand::thread_rng()
-            .sample_iter::<u8, _>(&Standard)
+        let key: Vec<u8> = rand::rng()
+            .sample_iter::<u8, _>(&StandardUniform)
             .take(10)
             .collect();
         self.set_key(key);
     }
     fn generate_secret(&mut self) {
-        let secret: Vec<u8> = rand::thread_rng()
-            .sample_iter::<u8, _>(&Standard)
+        let secret: Vec<u8> = rand::rng()
+            .sample_iter::<u8, _>(&StandardUniform)
             .take(20)
             .collect();
         self.set_secret(secret);
@@ -81,6 +81,11 @@ fn get_protobuf_from_timestamp(t: &DateTime<Utc>) -> Timestamp {
 fn get_timestamp_from_protobuf(t: &Timestamp) -> DateTime<Utc> {
     // Create a `Duration` from the seconds and nanoseconds
     let duration = std::time::Duration::new(t.seconds as u64, t.nanos as u32);
+    if t.nanos < 0 || t.seconds < 0 {
+        // Handle negative timestamps if necessary
+        // For simplicity, we'll just return the UNIX_EPOCH in this case
+        return DateTime::<Utc>::from(UNIX_EPOCH);
+    }
 
     // Add the duration to the UNIX epoch (1970-01-01 00:00:00 UTC) to get a `SystemTime`
     let system_time = UNIX_EPOCH + duration;
@@ -129,6 +134,18 @@ fn calculate_sha256(input: impl AsRef<[u8]>, salt: impl AsRef<[u8]>) -> Vec<u8> 
 
 // Login post request: user/pass => validate, return cookie
 impl Server {
+    pub fn generate_admin_user() -> User {
+        const ASCII_MIN: char = '!'; // 33
+        const ASCII_MAX: char = '~'; // 126 (inclusive)
+        const LEN: usize = 12;
+        let mut password = String::with_capacity(LEN);
+        for _ in 0..LEN {
+            let ch = rand::rng().random_range(ASCII_MIN..=ASCII_MAX);
+            password.push(ch);
+        }
+        println!("Generated admin password: {password}");
+        Self::generate_user(String::from("admin"), password, String::from(""))
+    }
     // Create a User protobuf for a successful register.
     pub fn generate_user(user_name: String, password: String, email: String) -> User {
         let mut user = User::new();
@@ -203,7 +220,7 @@ impl Server {
             None => return,
         };
         if let Some(expire_time) = session.expire_time.as_mut() {
-            *expire_time = get_protobuf_from_timestamp(&(DateTime::<Utc>::MIN_UTC));
+            *expire_time = get_protobuf_from_timestamp(&DateTime::default());
         }
         let _ = self.sled_store.insert_session(&session);
     }
@@ -211,6 +228,7 @@ impl Server {
     pub fn validate_session(&self, cookie: Cookie) -> Option<(Session, Option<Cookie>)> {
         // TODO: rotate the session if needed.
         // TODO: delete the session if not valid.
+
         // A partial session stored in cookie comprising only key and secret.
         let cookie_session = decode_cookie_str(cookie.value());
         let lookup_session_result = self.sled_store.look_up_session(cookie_session.key());
@@ -255,6 +273,8 @@ impl Server {
             maybe_cookie = Some(
                 Cookie::build("auth", generate_cookie_str(&session))
                     .permanent()
+                    .http_only(true)
+                    .secure(true)
                     .same_site(actix_web::cookie::SameSite::Strict)
                     .finish(),
             )
@@ -264,13 +284,6 @@ impl Server {
     }
 
     pub fn validate_login(&self, req: LogInRequest) -> Option<Cookie> {
-        /*
-        let _ = self.sled_store.insert_user(&Self::generate_user(
-            "vichare".to_owned(),
-            "12345".to_owned(),
-            "vicharewang@gmail.com".to_owned(),
-        ));
-        */
         let user = self.sled_store.look_up_user(&req.username).unwrap();
         let user = match user {
             Some(user) => user,
