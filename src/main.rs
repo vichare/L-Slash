@@ -20,6 +20,7 @@ use actix_web::HttpResponse;
 use actix_web::HttpServer;
 use actix_web::Responder;
 use l_slash::server::server::InsertRequest;
+use l_slash::server::server::ListQuery;
 use l_slash::server::server::LogInRequest;
 use l_slash::server::server::Server;
 use serde::Deserialize;
@@ -209,6 +210,15 @@ async fn login(
     server.handle_login(login_request.into_inner())
 }
 
+#[get("/_list")]
+async fn list(
+    web::Query(query): web::Query<ListQuery>,
+    server: web::Data<Server>,
+) -> impl Responder {
+    // server.handle_list(list_request.into_inner())
+    server.handle_list(query)
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let server = web::Data::new(Server::new("sled_data"));
@@ -238,6 +248,7 @@ async fn main() -> std::io::Result<()> {
             .service(debug)
             .service(login_form)
             .service(login)
+            .service(list)
             .service(form)
             .service(insert)
             .service(redirect)

@@ -1,6 +1,7 @@
 # L-Slash
 
 ## Action Items
+* List links
 * Let admin to change user
 * Redirect to the previous page after login
 * OTP login

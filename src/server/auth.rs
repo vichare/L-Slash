@@ -146,6 +146,7 @@ impl Server {
         println!("Generated admin password: {password}");
         Self::generate_user(String::from("admin"), password, String::from(""))
     }
+
     // Create a User protobuf for a successful register.
     pub fn generate_user(user_name: String, password: String, email: String) -> User {
         let mut user = User::new();

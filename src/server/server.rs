@@ -64,10 +64,16 @@ pub struct InsertRequest {
     url: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct LogInRequest {
     pub username: String,
     pub password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ListQuery {
+    pub skip: Option<usize>,
+    pub limit: Option<usize>,
 }
 
 pub struct Server {
@@ -136,6 +142,20 @@ impl Server {
                 .finish(),
             None => Self::handle_login_form(),
         }
+    }
+
+    pub fn handle_list(&self, query: ListQuery) -> HttpResponse {
+        let list_html = self
+            .sled_store
+            .list::<Record>(..)
+            .filter_map(Result::ok)
+            .skip(query.skip.unwrap_or(0) as usize)
+            .take(query.limit.unwrap_or(1000_000))
+            .map(|r| format!("<li><a href=\"/{}\">{}</a></li>", r.url(), r.name()))
+            .collect::<String>();
+        let html = format!("<ul>{}</ul>", list_html);
+        println!("{}", html);
+        Self::handle_html(html)
     }
 
     pub fn handle_form() -> HttpResponse {
