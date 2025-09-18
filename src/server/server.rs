@@ -154,7 +154,6 @@ impl Server {
             .map(|r| format!("<li><a href=\"/{}\">{}</a></li>", r.url(), r.name()))
             .collect::<String>();
         let html = format!("<ul>{}</ul>", list_html);
-        println!("{}", html);
         Self::handle_html(html)
     }
 
