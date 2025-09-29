@@ -151,7 +151,7 @@ impl Server {
             .filter_map(Result::ok)
             .skip(query.skip.unwrap_or(0) as usize)
             .take(query.limit.unwrap_or(1000_000))
-            .map(|r| format!("<li><a href=\"/{}\">{}</a></li>", r.url(), r.name()))
+            .map(|r| format!("<li><a href=\"{}\">{}</a></li>", r.url(), r.name()))
             .collect::<String>();
         let html = format!("<ul>{}</ul>", list_html);
         Self::handle_html(html)
