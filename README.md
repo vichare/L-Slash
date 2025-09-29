@@ -7,6 +7,7 @@
 * OTP login
 
 ## TODOs
+* Do not update a URL if it exists. Add an extra confirmation if needed.
 * User
 * Server CLI Flag
 * Improve error handling
