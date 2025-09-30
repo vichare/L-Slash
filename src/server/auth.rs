@@ -144,22 +144,29 @@ impl Server {
             password.push(ch);
         }
         println!("Generated admin password: {password}");
-        Self::generate_user(String::from("admin"), password, String::from(""))
+        Self::generate_user(String::from("admin"), password, String::from(""), true)
     }
 
     // Create a User protobuf for a successful register.
-    pub fn generate_user(user_name: String, password: String, email: String) -> User {
+    pub fn generate_user(
+        user_name: String,
+        password: String,
+        email: String,
+        is_admin: bool,
+    ) -> User {
         let mut user = User::new();
         user.set_user_name(user_name);
         user.set_email(email);
         user.set_password_sha256(calculate_sha256(password, "".as_bytes()));
+        user.set_is_admin(is_admin);
         user
     }
 
     // Create a new session protobuf for a successful login of a user.
-    pub fn generate_session(&self, user_name: String) -> Session {
+    pub fn generate_session(&self, user: &User) -> Session {
         let mut session = Session::new();
-        session.set_user_name(user_name);
+        session.set_user_name(user.user_name().to_string());
+        session.set_is_admin(user.is_admin());
 
         let mut found = true;
         while found {
@@ -295,7 +302,7 @@ impl Server {
             //eprintln!("password incorrect! {pass:?} != {input:?}", input = user.password_sha256());
             return None;
         }
-        let session = self.generate_session(user.user_name().to_string());
+        let session = self.generate_session(&user);
         Some(
             Cookie::build("auth", generate_cookie_str(&session))
                 .permanent()

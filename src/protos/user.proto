@@ -5,4 +5,5 @@ message User {
     optional string email = 2;
     optional bytes password_sha256 = 3;
     optional bytes password_salt = 4;
+    optional bool is_admin = 5 [default = false];
 }

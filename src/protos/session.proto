@@ -23,4 +23,7 @@ message Session {
 
     // How long since the previous secret could continue to use.
     optional google.protobuf.Timestamp previous_secret_expire_time = 7;
+
+    // Whether this session belongs to an admin user.
+    optional bool is_admin = 8 [default = false];
 }
