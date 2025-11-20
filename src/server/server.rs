@@ -1,12 +1,8 @@
+use crate::storage::sled_store::SledStore;
+use crate::Record;
+use actix_web::body::MessageBody;
 use std::path::Path;
 use std::str::FromStr;
-
-use crate::record::Record;
-//use crate::server::auth;
-
-use crate::storage::record_store::RecordStore;
-use crate::storage::sled_store::SledStore;
-use actix_web::body::MessageBody;
 //use actix_web::cookie::Cookie;
 use actix_web::HttpResponse;
 use serde::Deserialize;
@@ -94,14 +90,15 @@ impl Server {
         relative_path: Option<&str>,
         query_string: &str,
     ) -> HttpResponse {
-        let result = self.sled_store.look_up(alias);
+        let result = self.sled_store.records.look_up(alias);
         let record = match result {
             Ok(Some(record)) => record,
             Ok(None) => return self.handle_non_exist(alias),
             // TODO: Log error: not able to retrieve record.
             Err(_) => return self.handle_non_exist(alias),
         };
-        let base_url = match Url::from_str(record.url()) {
+        // We always pass in valid UTF8 to url fields. So unwrap is safe here.
+        let base_url = match Url::from_str(record.url().to_str().unwrap()) {
             Ok(url) => url,
             // TODO: Log internal error: invalid url record.
             Err(_) => return self.handle_non_exist(alias),
@@ -129,9 +126,9 @@ impl Server {
         let mut record = Record::new();
         record.set_name(insert_request.alias);
         record.set_url(insert_request.url);
-        let _insert_result = self.sled_store.insert(&record);
+        let _insert_result = self.sled_store.records.insert(record.name(), &record);
         // TODO: log insert error.
-        Self::see_other(record.url())
+        Self::see_other(record.url().to_str().unwrap())
     }
 
     pub fn handle_login(&self, login_request: LogInRequest) -> HttpResponse {
@@ -147,7 +144,8 @@ impl Server {
     pub fn handle_list(&self, query: ListQuery) -> HttpResponse {
         let list_html = self
             .sled_store
-            .list::<Record>(..)
+            .records
+            .range(..)
             .filter_map(Result::ok)
             .skip(query.skip.unwrap_or(0) as usize)
             .take(query.limit.unwrap_or(1000_000))

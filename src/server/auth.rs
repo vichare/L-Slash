@@ -1,14 +1,16 @@
 use crate::server::server::LogInRequest;
 use crate::server::server::Server;
-use crate::session::Session;
-use crate::user::User;
+use crate::Session;
+use crate::User;
+use ::protobuf_well_known_types::Timestamp;
+use ::protobuf_well_known_types::TimestampView;
 use actix_web::cookie::Cookie;
 //use base64::URL_SAFE_NO_PAD;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::DateTime;
 use chrono::Duration;
 use chrono::Utc;
-use protobuf::well_known_types::timestamp::Timestamp;
+// use protobuf::well_known_types::timestamp::Timestamp;
 use rand::distr::StandardUniform;
 use rand::Rng;
 use std::time::UNIX_EPOCH;
@@ -19,8 +21,8 @@ use sha2::{Digest, Sha256};
 
 // Return if the current time has passed an expire time.
 // If specified time is none, considered is as expired.
-fn time_passed_proto_ts(ts: Option<&Timestamp>) -> bool {
-    let expire_time_proto = match ts {
+fn time_passed_proto_ts(ts: protobuf::Optional<TimestampView>) -> bool {
+    let expire_time_proto = match ts.into() {
         Some(t) => t,
         None => return true,
     };
@@ -28,7 +30,7 @@ fn time_passed_proto_ts(ts: Option<&Timestamp>) -> bool {
     return Utc::now() > expire_time;
 }
 
-impl crate::session::Session {
+impl crate::Session {
     fn generate_key(&mut self) {
         let key: Vec<u8> = rand::rng()
             .sample_iter::<u8, _>(&StandardUniform)
@@ -48,7 +50,7 @@ impl crate::session::Session {
         if self.secret() == secret.as_ref() {
             return true;
         }
-        if !time_passed_proto_ts(self.previous_secret_expire_time.as_ref())
+        if !time_passed_proto_ts(self.previous_secret_expire_time_opt())
             && self.has_previous_secret()
             && self.previous_secret() == secret.as_ref()
         {
@@ -58,34 +60,42 @@ impl crate::session::Session {
     }
 
     fn is_expired(&self) -> bool {
-        time_passed_proto_ts(self.expire_time.as_ref())
+        time_passed_proto_ts(self.expire_time_opt())
     }
 
     fn needs_rotation(&self) -> bool {
-        time_passed_proto_ts(self.rotation_time.as_ref())
+        time_passed_proto_ts(self.rotation_time_opt())
     }
 }
 
-fn set_protobuf_timestamp(proto_ts: &mut Timestamp, target: DateTime<Utc>) {
-    proto_ts.seconds = target.timestamp();
-    proto_ts.nanos = target.timestamp_subsec_nanos() as i32;
+fn get_protobuf_from_timestamp(target: DateTime<Utc>) -> Timestamp {
+    protobuf::proto!(Timestamp {
+        seconds: target.timestamp(),
+        nanos: target.timestamp_subsec_nanos() as i32,
+    })
 }
 
-fn get_protobuf_from_timestamp(t: &DateTime<Utc>) -> Timestamp {
-    let mut p = Timestamp::new();
-    p.seconds = t.timestamp();
-    p.nanos = t.timestamp_subsec_nanos() as i32;
-    p
-}
+// fn set_protobuf_timestamp(proto_ts: &mut Timestamp, target: DateTime<Utc>) {
+//     proto_ts.seconds = target.timestamp();
+//     proto_ts.nanos = target.timestamp_subsec_nanos() as i32;
+// }
+//
+// fn get_protobuf_from_timestamp(t: &DateTime<Utc>) -> Timestamp {
+//     let mut p = Timestamp::new();
+//     p.seconds = t.timestamp();
+//     p.nanos = t.timestamp_subsec_nanos() as i32;
+//     p
+// }
 
-fn get_timestamp_from_protobuf(t: &Timestamp) -> DateTime<Utc> {
-    // Create a `Duration` from the seconds and nanoseconds
-    let duration = std::time::Duration::new(t.seconds as u64, t.nanos as u32);
-    if t.nanos < 0 || t.seconds < 0 {
+fn get_timestamp_from_protobuf(t: TimestampView) -> DateTime<Utc> {
+    if t.nanos() < 0 || t.seconds() < 0 {
         // Handle negative timestamps if necessary
         // For simplicity, we'll just return the UNIX_EPOCH in this case
         return DateTime::<Utc>::from(UNIX_EPOCH);
     }
+
+    // Create a `Duration` from the seconds and nanoseconds
+    let duration = std::time::Duration::new(t.seconds() as u64, t.nanos() as u32);
 
     // Add the duration to the UNIX epoch (1970-01-01 00:00:00 UTC) to get a `SystemTime`
     let system_time = UNIX_EPOCH + duration;
@@ -107,15 +117,15 @@ fn decode_cookie_str(cookie_str: &str) -> Session {
     let (first, second) = cookie_str.split_once("/").unwrap_or((cookie_str, ""));
 
     // Base64-decode the two pieces, using the URL-safe alphabet without padding
-    let first_decoded =
-        //base64::decode_config(first, URL_SAFE_NO_PAD).unwrap_or_else(|_| Vec::new());
-        general_purpose::URL_SAFE_NO_PAD.decode(first).unwrap_or_else(|_| Vec::new());
+    let first_decoded = general_purpose::URL_SAFE_NO_PAD
+        .decode(first)
+        .unwrap_or_else(|_| Vec::new());
     let second_decoded = general_purpose::URL_SAFE_NO_PAD
         .decode(second)
         .unwrap_or_else(|_| Vec::new());
 
-    *session.mut_key() = first_decoded;
-    *session.mut_secret() = second_decoded;
+    session.set_key(first_decoded);
+    session.set_secret(second_decoded);
 
     session
 }
@@ -182,14 +192,12 @@ impl Server {
         // Generate a random [u8] of length 20
         session.generate_secret();
 
-        set_protobuf_timestamp(
-            &mut session.expire_time.mut_or_insert_default(),
+        session.set_expire_time(get_protobuf_from_timestamp(
             Utc::now() + Duration::days(365),
-        );
-        set_protobuf_timestamp(
-            &mut session.rotation_time.mut_or_insert_default(),
+        ));
+        session.set_rotation_time(get_protobuf_from_timestamp(
             Utc::now() + Duration::minutes(5),
-        );
+        ));
 
         let _ = self.sled_store.insert_session(&session);
 
@@ -198,24 +206,21 @@ impl Server {
 
     fn rotate_session(&self, session: &mut Session) {
         // Rotate previous secret.
-        *session.mut_previous_secret() = session.secret().to_vec();
-        set_protobuf_timestamp(
-            &mut session.previous_secret_expire_time.mut_or_insert_default(),
+        session.set_previous_secret(session.secret().to_vec());
+        session.set_previous_secret_expire_time(get_protobuf_from_timestamp(
             Utc::now() + Duration::minutes(1),
-        );
+        ));
 
         // Regenerate secret.
         session.generate_secret();
 
         // Extend expire time and rotation_time.
-        set_protobuf_timestamp(
-            &mut session.expire_time.mut_or_insert_default(),
+        session.set_expire_time(get_protobuf_from_timestamp(
             Utc::now() + Duration::days(365),
-        );
-        set_protobuf_timestamp(
-            &mut session.rotation_time.mut_or_insert_default(),
+        ));
+        session.set_rotation_time(get_protobuf_from_timestamp(
             Utc::now() + Duration::minutes(5),
-        );
+        ));
 
         // TODO: log error.
         let _ = self.sled_store.insert_session(session);
@@ -227,13 +232,14 @@ impl Server {
             Some(s) => s,
             None => return,
         };
-        if let Some(expire_time) = session.expire_time.as_mut() {
-            *expire_time = get_protobuf_from_timestamp(&DateTime::default());
+        if session.has_expire_time() {
+            session.set_expire_time(get_protobuf_from_timestamp(DateTime::default()));
         }
+        // TODO: log error.
         let _ = self.sled_store.insert_session(&session);
     }
 
-    pub fn validate_session(&self, cookie: Cookie) -> Option<(Session, Option<Cookie>)> {
+    pub fn validate_session(&self, cookie: Cookie) -> Option<(Session, Option<Cookie<'_>>)> {
         // TODO: rotate the session if needed.
         // TODO: delete the session if not valid.
 
@@ -291,7 +297,7 @@ impl Server {
         Some((session, maybe_cookie))
     }
 
-    pub fn validate_login(&self, req: LogInRequest) -> Option<Cookie> {
+    pub fn validate_login(&self, req: LogInRequest) -> Option<Cookie<'_>> {
         let user = self.sled_store.look_up_user(&req.username).unwrap();
         let user = match user {
             Some(user) => user,

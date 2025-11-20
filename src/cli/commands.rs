@@ -1,9 +1,10 @@
-use l_slash::record::Record;
-use l_slash::storage::record_store::RecordStore;
+// use l_slash::storage::record_store::RecordStore;
 use l_slash::storage::sled_store::SledStore;
+use l_slash::Record;
 
 pub fn list(db: &SledStore) {
-    db.list::<Record>(core::ops::RangeFull)
+    db.records
+        .range(core::ops::RangeFull)
         .for_each(|result_record| match result_record {
             Ok(record) => println!("{:?}", record),
             Err(err) => eprintln!("{err}"),
@@ -12,6 +13,7 @@ pub fn list(db: &SledStore) {
 
 pub fn lookup(db: &SledStore, alias: String) {
     let result = db
+        .records
         .look_up(alias.as_str())
         .expect(format!("Error when lookup alias {}:", alias).as_str());
     match result {
@@ -24,6 +26,21 @@ pub fn add(db: &SledStore, name: String, url: String) {
     let mut record = Record::new();
     record.set_name(name);
     record.set_url(url);
-    db.insert(&record)
+    db.records
+        .insert(record.name().to_str().unwrap(), &record)
         .expect(format!("Error when add alias {}:", record.name()).as_str());
+}
+
+// Move all records from root to a sub-tree "records"
+pub fn move_records(db: &SledStore) {
+    // db.db.range(..).for_each(|item| -> db.records.insert);
+    for item in db.db.range::<String, _>(..) {
+        match item {
+            Ok((key, value)) => {
+                println!("Moved record with key {:?}", &key);
+                db.records.tree.insert(key, value).unwrap();
+            }
+            Err(err) => eprintln!("Error when reading record: {}", err),
+        }
+    }
 }

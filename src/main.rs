@@ -172,7 +172,12 @@ async fn debug(
 
     if action.action == Some(String::from("get_user")) {
         if let Some(s) = maybe_session.as_ref() {
-            println!("{:?}", server.sled_store.look_up_user(s.user_name()));
+            println!(
+                "{:?}",
+                server
+                    .sled_store
+                    .look_up_user(s.user_name().to_str().unwrap())
+            );
         }
     }
 

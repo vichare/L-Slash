@@ -13,6 +13,7 @@ pub struct Flags {
 #[derive(Subcommand, Debug, PartialEq)]
 pub enum Action {
     List,
+    MoveRecords,
     Lookup(LookupAction),
     Add(AddAction),
 }
