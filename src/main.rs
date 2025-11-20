@@ -176,7 +176,8 @@ async fn debug(
                 "{:?}",
                 server
                     .sled_store
-                    .look_up_user(s.user_name().to_str().unwrap())
+                    .users
+                    .look_up(s.user_name().to_str().unwrap())
             );
         }
     }
@@ -220,7 +221,6 @@ async fn list(
     web::Query(query): web::Query<ListQuery>,
     server: web::Data<Server>,
 ) -> impl Responder {
-    // server.handle_list(list_request.into_inner())
     server.handle_list(query)
 }
 

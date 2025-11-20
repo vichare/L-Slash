@@ -5,12 +5,10 @@ use crate::User;
 use ::protobuf_well_known_types::Timestamp;
 use ::protobuf_well_known_types::TimestampView;
 use actix_web::cookie::Cookie;
-//use base64::URL_SAFE_NO_PAD;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::DateTime;
 use chrono::Duration;
 use chrono::Utc;
-// use protobuf::well_known_types::timestamp::Timestamp;
 use rand::distr::StandardUniform;
 use rand::Rng;
 use std::time::UNIX_EPOCH;
@@ -74,18 +72,6 @@ fn get_protobuf_from_timestamp(target: DateTime<Utc>) -> Timestamp {
         nanos: target.timestamp_subsec_nanos() as i32,
     })
 }
-
-// fn set_protobuf_timestamp(proto_ts: &mut Timestamp, target: DateTime<Utc>) {
-//     proto_ts.seconds = target.timestamp();
-//     proto_ts.nanos = target.timestamp_subsec_nanos() as i32;
-// }
-//
-// fn get_protobuf_from_timestamp(t: &DateTime<Utc>) -> Timestamp {
-//     let mut p = Timestamp::new();
-//     p.seconds = t.timestamp();
-//     p.nanos = t.timestamp_subsec_nanos() as i32;
-//     p
-// }
 
 fn get_timestamp_from_protobuf(t: TimestampView) -> DateTime<Utc> {
     if t.nanos() < 0 || t.seconds() < 0 {
@@ -184,7 +170,8 @@ impl Server {
             session.generate_key();
             found = self
                 .sled_store
-                .look_up_session(session.key())
+                .sessions
+                .look_up(session.key())
                 .unwrap()
                 .is_some();
         }
@@ -227,7 +214,7 @@ impl Server {
     }
 
     pub fn invalidate_session(&self, key: &[u8]) {
-        let session = self.sled_store.look_up_session(key).unwrap();
+        let session = self.sled_store.sessions.look_up(key).unwrap();
         let mut session = match session {
             Some(s) => s,
             None => return,
@@ -245,7 +232,7 @@ impl Server {
 
         // A partial session stored in cookie comprising only key and secret.
         let cookie_session = decode_cookie_str(cookie.value());
-        let lookup_session_result = self.sled_store.look_up_session(cookie_session.key());
+        let lookup_session_result = self.sled_store.sessions.look_up(cookie_session.key());
         let mut session = match lookup_session_result {
             Ok(Some(session)) => session,
             // TODO: log error;
@@ -298,7 +285,7 @@ impl Server {
     }
 
     pub fn validate_login(&self, req: LogInRequest) -> Option<Cookie<'_>> {
-        let user = self.sled_store.look_up_user(&req.username).unwrap();
+        let user = self.sled_store.users.look_up(&req.username).unwrap();
         let user = match user {
             Some(user) => user,
             None => return None,

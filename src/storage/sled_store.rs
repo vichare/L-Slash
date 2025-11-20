@@ -1,4 +1,3 @@
-// use crate::Record;
 use crate::Record;
 use crate::Session;
 use crate::User;
@@ -26,16 +25,7 @@ pub enum DataStoreError {
     Unknown(#[from] std::io::Error),
 }
 
-pub trait DataType: Default + Clone + Send + Sync + Sized + ::protobuf::Message {
-    // fn parse_from_bytes(buffer: &[u8]) -> Result<Self, DataStoreError> {
-    //     Self::parse(buffer).map_err(|e| DataStoreError::Decode(e))
-    // }
-    //
-    // fn to_bytes(&self) -> Result<Vec<u8>, DataStoreError> {
-    //     return self.serialize().map_err(|e| DataStoreError::Encode(e));
-    // }
-}
-
+pub trait DataType: Default + Clone + Send + Sync + Sized + ::protobuf::Message {}
 impl<T: Default + Clone + Send + Sync + Sized + ::protobuf::Message> DataType for T {}
 
 pub struct SledTree<D: DataType> {
@@ -54,15 +44,6 @@ impl<D: DataType> SledTree<D> {
     }
 
     pub fn look_up<Key: AsRef<[u8]>>(&self, key: Key) -> Result<Option<D>, DataStoreError> {
-        // let maybe_buffer = self.tree.get(key)?;
-        // let buffer = match maybe_buffer {
-        //     Some(buf) => buf,
-        //     None => return Ok(None),
-        // };
-        // D::parse(buffer.as_ref())
-        //     .map(Some)
-        //     .map_err(DataStoreError::Decode)
-
         self.tree
             .get(key)?
             .map(|buffer| D::parse(buffer.as_ref()).map_err(DataStoreError::Decode))
@@ -115,66 +96,11 @@ impl SledStore {
         })
     }
 
-    pub fn look_up_user(&self, username: &str) -> Result<Option<User>, DataStoreError> {
-        // Self::look_up_protobuf(&(self.db.open_tree(USER_TREE_NAME)?), username)
-        self.users.look_up(username)
-    }
-
     pub fn insert_user(&self, user: &User) -> Result<(), DataStoreError> {
-        // Self::insert_protobuf(
-        //     &(self.db.open_tree(USER_TREE_NAME)?),
-        //     user.user_name(),
-        //     user,
-        // )
         self.users.insert(user.user_name(), user)
-    }
-
-    pub fn look_up_session(&self, session_key: &[u8]) -> Result<Option<Session>, DataStoreError> {
-        self.sessions.look_up(session_key)
     }
 
     pub fn insert_session(&self, session: &Session) -> Result<(), DataStoreError> {
         self.sessions.insert(session.key(), session)
     }
-
-    // pub fn look_up_protobuf<Key: AsRef<[u8]>, ProtoType: Message>(
-    //     tree: &sled::Tree,
-    //     name: Key,
-    // ) -> Result<Option<ProtoType>, Box<dyn Error>> {
-    //     let maybe_buffer = tree.get(name)?;
-    //     maybe_buffer
-    //         .map(|buffer| ProtoType::parse_from_bytes(buffer.as_ref()))
-    //         .transpose()
-    //         .map_err(|e| Box::new(e) as Box<dyn Error>)
-    // }
-
-    // pub fn insert_protobuf<Key: AsRef<[u8]>, ProtoType: Message>(
-    //     tree: &sled::Tree,
-    //     name: Key,
-    //     record: &ProtoType,
-    // ) -> Result<(), Box<dyn Error>> {
-    //     let bytes = record.write_to_bytes()?;
-    //     tree.insert(name, bytes)?;
-    //     Ok(())
-    // }
-
-    // pub fn list<ProtoType: Message>(
-    //     &self,
-    //     range: impl RangeBounds<String>,
-    // ) -> impl Iterator<Item = Result<ProtoType, Box<dyn Error>>> {
-    //     self.db.range(range).map(|result_ivec| {
-    //         let (_key, value) = result_ivec?;
-    //         ProtoType::parse_from_bytes(value.as_ref()).map_err(|e| Box::new(e) as Box<dyn Error>)
-    //     })
-    // }
 }
-
-// impl RecordStore for SledStore {
-//     fn look_up(&self, name: &str) -> Result<Option<Record>, Box<dyn Error>> {
-//         Self::look_up_protobuf(&self.db, name)
-//     }
-//
-//     fn insert(&self, record: &Record) -> Result<(), Box<dyn Error>> {
-//         Self::insert_protobuf(&self.db, record.name(), record)
-//     }
-// }

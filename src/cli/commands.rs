@@ -1,4 +1,3 @@
-// use l_slash::storage::record_store::RecordStore;
 use l_slash::storage::sled_store::SledStore;
 use l_slash::Record;
 
@@ -33,7 +32,6 @@ pub fn add(db: &SledStore, name: String, url: String) {
 
 // Move all records from root to a sub-tree "records"
 pub fn move_records(db: &SledStore) {
-    // db.db.range(..).for_each(|item| -> db.records.insert);
     for item in db.db.range::<String, _>(..) {
         match item {
             Ok((key, value)) => {
