@@ -7,8 +7,9 @@
 * OTP login
 
 ## TODOs
+* Support tags for records.
 * Do not update a URL if it exists. Add an extra confirmation if needed.
-* User
+* Modify User by Admin
 * Server CLI Flag
 * Improve error handling
 * Monitoring
