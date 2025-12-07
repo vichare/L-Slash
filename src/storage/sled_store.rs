@@ -28,6 +28,7 @@ pub enum DataStoreError {
 pub trait DataType: Default + Clone + Send + Sync + Sized + ::protobuf::Message {}
 impl<T: Default + Clone + Send + Sync + Sized + ::protobuf::Message> DataType for T {}
 
+#[derive(Clone)]
 pub struct SledTree<D: DataType> {
     // store: SledStore,
     pub tree: Tree,
@@ -75,6 +76,7 @@ impl<D: DataType> SledTree<D> {
     }
 }
 
+#[derive(Clone)]
 pub struct SledStore {
     pub db: Db,
     pub users: SledTree<User>,

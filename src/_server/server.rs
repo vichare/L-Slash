@@ -3,16 +3,10 @@ use crate::Record;
 use actix_web::body::MessageBody;
 use std::path::Path;
 use std::str::FromStr;
-//use actix_web::cookie::Cookie;
 use actix_web::HttpResponse;
 use serde::Deserialize;
 use serde::Serialize;
 use url::Url;
-
-/*
-const ERROR_HTML: &str = r#"
-"#;
-*/
 
 const FORM_HTML: &str = r#"
 <form action="/_/" method="post">

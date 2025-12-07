@@ -153,6 +153,7 @@ impl Server {
         let mut user = User::new();
         user.set_user_name(user_name);
         user.set_email(email);
+        // TODO: use a better salt.
         user.set_password_sha256(calculate_sha256(password, "".as_bytes()));
         user.set_is_admin(is_admin);
         user

@@ -11,6 +11,7 @@
 * Do not update a URL if it exists. Add an extra confirmation if needed.
 * Modify User by Admin
 * Server CLI Flag
+* Enable secure cookie on server
 * Improve error handling
 * Monitoring
 * Rust Doc
