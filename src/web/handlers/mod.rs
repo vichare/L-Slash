@@ -158,7 +158,7 @@ pub async fn login(
             http::see_other_with_cookie("/", &cookie, state.cookie_secure, jar).into_response()
         }
         None => {
-            // 登录失败，回到登录页
+            // Login failed, redirect to login page.
             http::see_other("/_login").into_response()
         }
     }
