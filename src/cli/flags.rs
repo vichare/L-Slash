@@ -16,6 +16,8 @@ pub enum Action {
     MoveRecords,
     Lookup(LookupAction),
     Add(AddAction),
+    ListUsers,
+    AddUser(AddUserAction),
 }
 
 #[derive(Args, Debug, PartialEq)]
@@ -27,6 +29,13 @@ pub struct LookupAction {
 pub struct AddAction {
     pub alias: String,
     pub url: String,
+}
+
+#[derive(Args, Debug, PartialEq)]
+pub struct AddUserAction {
+    pub username: String,
+    pub password: String,
+    pub is_admin: bool,
 }
 
 #[cfg(test)]

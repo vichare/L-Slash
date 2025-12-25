@@ -42,3 +42,17 @@ pub fn move_records(db: &SledStore) {
         }
     }
 }
+
+pub fn list_users(db: &SledStore) {
+    db.users
+        .range(core::ops::RangeFull)
+        .for_each(|result_user| match result_user {
+            Ok(user) => println!("{:?}", user),
+            Err(err) => eprintln!("{err}"),
+        });
+}
+
+pub fn add_user(db: &SledStore, username: String, password: String, is_admin: bool) {
+    let user = l_slash::services::user::generate_user(username, password, "".to_string(), is_admin);
+    db.insert_user(&user).unwrap();
+}
