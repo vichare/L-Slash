@@ -7,7 +7,6 @@
 * OTP login
 
 ## TODOs
-* Support change history.
 * Support tags for records.
 * Do not update a URL if it exists. Add an extra confirmation if needed.
 * Server CLI Flag
@@ -22,3 +21,4 @@
   * Implemented a CLI command for that
 
 ## Done
+* Support change history.
