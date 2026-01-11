@@ -80,12 +80,30 @@ pub async fn get(State(state): State<AppState>, Path(alias): Path<String>) -> im
     let sled_store = &state.sled_store;
 
     let result = sled_store.records.look_up(&alias);
+
+    let change_history_result = sled_store.record_changes.prefix(format!("{}/", alias));
+
+    // Render change history.
+    let mut change_history_html = String::from("<h2>Change History</h2><ul>");
+    for change_result in change_history_result {
+        if let Ok(change) = change_result {
+            change_history_html += &format!(
+                "<li>Changed by: {} | URL before: {} | URL after: {}</li>",
+                change.changed_by(),
+                change.url_before(),
+                change.url_after()
+            );
+        }
+    }
+    change_history_html += "</ul>";
+
     match result {
         Ok(Some(record)) => Html(format!(
-            include_str!("get_form_html.inc"),
+            include_str!("template/get_form_html.inc"),
             alias = record.name().to_str().unwrap(),
             url = record.url().to_str().unwrap(),
-            owner = record.owner().to_str().unwrap()
+            owner = record.owner().to_str().unwrap(),
+            change_history_html = change_history_html,
         )),
         // TODO: handle errors properly.
         Ok(None) | Err(_) => Html(format!("Record {alias} not found.")),
@@ -102,7 +120,11 @@ pub async fn insert(
 ) -> impl IntoResponse {
     let sled_store = &state.sled_store;
     // TODO: handle insert errors properly.
-    let result = url::insert_record(sled_store, insert_request.clone(), session.user_name().to_str().unwrap());
+    let result = url::insert_record(
+        sled_store,
+        insert_request.clone(),
+        session.user_name().to_str().unwrap(),
+    );
     match result {
         Ok(record) => {
             // We always insert string with correct encoding, so unwrap is safe here.
@@ -197,7 +219,14 @@ pub async fn login(
 fn render_list_html(records: Vec<Record>) -> impl IntoResponse {
     let list_html = records
         .iter()
-        .map(|r| format!(r#"<li><a href="{}">{}</a> <a href="\_\{}">✏️</a></li>"#, r.url(), r.name(), r.name()))
+        .map(|r| {
+            format!(
+                r#"<li><a href="{}">{}</a> <a href="\_\{}">✏️</a></li>"#,
+                r.url(),
+                r.name(),
+                r.name()
+            )
+        })
         .collect::<String>();
     Html(format!("<ul>{}</ul>", list_html))
 }

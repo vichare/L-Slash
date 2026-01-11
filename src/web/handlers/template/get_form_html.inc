@@ -6,3 +6,4 @@
   <input type="submit" value="Submit">
 </form>
 Owner: {owner} <br />
+{change_history_html}

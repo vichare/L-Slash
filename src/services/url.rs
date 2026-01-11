@@ -111,13 +111,15 @@ pub fn insert_record(store: &SledStore, req: InsertRequest, user: &str) -> Resul
     record_change.set_url_after(&req.url);
     record_change.set_changed_by(user);
     if let Some(prev) = prev {
-        record_change.set_url_before(prev.name().to_str().unwrap());
+        record_change.set_url_before(prev.url().to_str().unwrap());
     }
     // Create a timestamp key to ensure uniqueness and ordering.
     let timestamp = chrono::Utc::now().timestamp_millis() as u64;
     let key = hex::encode(timestamp.to_be_bytes());
 
-    store.record_changes.insert(format!("{}/{}", req.alias, key), &record_change)?;
+    store
+        .record_changes
+        .insert(format!("{}/{}", req.alias, key), &record_change)?;
 
     Ok(record)
 }

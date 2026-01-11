@@ -76,6 +76,17 @@ impl<D: DataType> SledTree<D> {
                 .and_then(|bytes| D::parse(bytes.as_ref()).map_err(DataStoreError::Decode))
         })
     }
+
+    pub fn prefix(
+        &self,
+        prefix: impl AsRef<[u8]>,
+    ) -> impl Iterator<Item = Result<D, DataStoreError>> {
+        self.tree.scan_prefix(prefix).values().map(|result| {
+            result
+                .map_err(DataStoreError::Sled)
+                .and_then(|bytes| D::parse(bytes.as_ref()).map_err(DataStoreError::Decode))
+        })
+    }
 }
 
 #[derive(Clone)]
