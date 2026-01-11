@@ -82,8 +82,18 @@ pub async fn insert(
 ) -> impl IntoResponse {
     let sled_store = &state.sled_store;
     // TODO: handle insert errors properly.
-    let _result = url::insert_record(sled_store, insert_request.clone());
-    http::see_other(&insert_request.alias)
+    let result = url::insert_record(sled_store, insert_request.clone());
+    match result {
+        Ok(record) => {
+            // We always insert string with correct encoding, so unwrap is safe here.
+            http::see_other(record.url().to_str().unwrap())
+        }
+        Err(err) => {
+            eprintln!("Failed to insert record: {err}");
+            // Redirect to form page on error.
+            http::see_other("/")
+        }
+    }
 }
 
 //
