@@ -23,7 +23,7 @@ fn is_public_path(path: &str) -> bool {
 }
 
 // TODO: 根据路径判断是否需要管理员权限
-fn _require_admin(path: &str) -> bool {
+fn require_admin(path: &str) -> bool {
     matches!(path, "/_debug")
 }
 
@@ -65,6 +65,10 @@ pub async fn auth_cookie_middleware(
     else {
         return Redirect::to("/_login").into_response();
     };
+
+    if require_admin(path) && !session.is_admin() {
+        return Redirect::to("/").into_response();
+    }
 
     // 把 session 放到 extensions，后续 handler 可提取
     req.extensions_mut().insert(session);
