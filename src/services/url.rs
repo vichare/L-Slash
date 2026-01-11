@@ -1,6 +1,7 @@
 use super::result::Result;
 use crate::storage::sled_store::SledStore;
 use crate::Record;
+use crate::RecordChange;
 use serde::Deserialize;
 use std::str::FromStr;
 use url::Url;
@@ -96,13 +97,27 @@ pub fn resolve_alias(
 /// Insert a short link record, corresponding to the original `handle_insert`.
 ///
 /// Returns the newly created `Record`, which the caller can use to decide where to redirect.
-pub fn insert_record(store: &SledStore, req: InsertRequest) -> Result<Record> {
+pub fn insert_record(store: &SledStore, req: InsertRequest, user: &str) -> Result<Record> {
+    let prev = store.records.look_up(&req.alias)?;
     let mut record = Record::new();
-    record.set_name(req.alias);
-    record.set_url(req.url);
+    record.set_name(&req.alias);
+    record.set_url(&req.url);
 
     // TODO: 这里可以考虑处理插入失败 / 冲突等情况
     store.records.insert(record.name(), &record)?;
+
+    let mut record_change = RecordChange::new();
+    record_change.set_name(&req.alias);
+    record_change.set_url_after(&req.url);
+    record_change.set_changed_by(user);
+    if let Some(prev) = prev {
+        record_change.set_url_before(prev.name().to_str().unwrap());
+    }
+    // Create a timestamp key to ensure uniqueness and ordering.
+    let timestamp = chrono::Utc::now().timestamp_millis() as u64;
+    let key = hex::encode(timestamp.to_be_bytes());
+
+    store.record_changes.insert(format!("{}/{}", req.alias, key), &record_change)?;
 
     Ok(record)
 }

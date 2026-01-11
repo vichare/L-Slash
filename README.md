@@ -15,6 +15,7 @@
 * Improve error handling
 * Monitoring
 * Rust Doc
+* Handel `unwrap`
 
 ## Low-Priority
 * Modify User by Admin

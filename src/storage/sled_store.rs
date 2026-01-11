@@ -1,4 +1,5 @@
 use crate::Record;
+use crate::RecordChange;
 use crate::Session;
 use crate::User;
 
@@ -12,6 +13,7 @@ use std::path::Path;
 const USER_TREE_NAME: &[u8] = b"user";
 const SESSION_TREE_NAME: &[u8] = b"session";
 const RECORD_TREE_NAME: &[u8] = b"record";
+const RECORD_CHANGES_TREE_NAME: &[u8] = b"record_changes";
 
 #[derive(thiserror::Error, Debug)]
 pub enum DataStoreError {
@@ -82,6 +84,7 @@ pub struct SledStore {
     pub users: SledTree<User>,
     pub sessions: SledTree<Session>,
     pub records: SledTree<Record>,
+    pub record_changes: SledTree<RecordChange>,
 }
 
 impl SledStore {
@@ -90,11 +93,13 @@ impl SledStore {
         let users = SledTree::new(db.clone(), USER_TREE_NAME)?;
         let sessions = SledTree::new(db.clone(), SESSION_TREE_NAME)?;
         let records = SledTree::new(db.clone(), RECORD_TREE_NAME)?;
+        let record_changes = SledTree::new(db.clone(), RECORD_CHANGES_TREE_NAME)?;
         Ok(Self {
             db,
             users,
             sessions,
             records,
+            record_changes,
         })
     }
 

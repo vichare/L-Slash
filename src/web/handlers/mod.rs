@@ -96,12 +96,13 @@ pub async fn get(State(state): State<AppState>, Path(alias): Path<String>) -> im
 // POST "/_/" insert
 //
 pub async fn insert(
+    AuthSession(session): AuthSession,
     State(state): State<AppState>,
     Form(insert_request): Form<InsertRequest>,
 ) -> impl IntoResponse {
     let sled_store = &state.sled_store;
     // TODO: handle insert errors properly.
-    let result = url::insert_record(sled_store, insert_request.clone());
+    let result = url::insert_record(sled_store, insert_request.clone(), session.user_name().to_str().unwrap());
     match result {
         Ok(record) => {
             // We always insert string with correct encoding, so unwrap is safe here.
