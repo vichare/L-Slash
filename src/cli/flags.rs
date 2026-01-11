@@ -33,8 +33,11 @@ pub struct AddAction {
 
 #[derive(Args, Debug, PartialEq)]
 pub struct AddUserAction {
+    #[arg(short = 'u', long = "username")]
     pub username: String,
+    #[arg(short = 'p', long = "password")]
     pub password: String,
+    #[arg(short = 'a', long = "is-admin", default_value_t = false)]
     pub is_admin: bool,
 }
 
