@@ -74,6 +74,25 @@ pub async fn redirect_with_relative(
 }
 
 //
+// GET "/_/:alias" get
+//
+pub async fn get(State(state): State<AppState>, Path(alias): Path<String>) -> impl IntoResponse {
+    let sled_store = &state.sled_store;
+
+    let result = sled_store.records.look_up(&alias);
+    match result {
+        Ok(Some(record)) => Html(format!(
+            include_str!("get_form_html.inc"),
+            alias = record.name().to_str().unwrap(),
+            url = record.url().to_str().unwrap(),
+            owner = record.owner().to_str().unwrap()
+        )),
+        // TODO: handle errors properly.
+        Ok(None) | Err(_) => Html(format!("Record {alias} not found.")),
+    }
+}
+
+//
 // POST "/_/" insert
 //
 pub async fn insert(
@@ -177,7 +196,7 @@ pub async fn login(
 fn render_list_html(records: Vec<Record>) -> impl IntoResponse {
     let list_html = records
         .iter()
-        .map(|r| format!("<li><a href=\"{}\">{}</a></li>", r.url(), r.name()))
+        .map(|r| format!(r#"<li><a href="{}">{}</a> <a href="\_\{}">✏️</a></li>"#, r.url(), r.name(), r.name()))
         .collect::<String>();
     Html(format!("<ul>{}</ul>", list_html))
 }

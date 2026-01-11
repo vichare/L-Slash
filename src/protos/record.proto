@@ -6,3 +6,10 @@ message Record {
   optional string owner = 3;
   repeated string tags = 20;
 }
+
+message RecordChange {
+  optional string name = 1;
+  optional string url_before = 2;
+  optional string url_after = 3;
+  optional string changed_by = 4;
+}

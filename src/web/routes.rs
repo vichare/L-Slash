@@ -18,6 +18,7 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/_list", get(handlers::list))
         .route("/_health", get(handlers::misc::health_check))
         .route("/_/", post(handlers::insert))
+        .route("/_/{alias}", get(handlers::get))
         .route("/{alias}/{relative}", get(handlers::redirect_with_relative))
         .route("/{alias}", get(handlers::redirect))
         .layer(from_fn_with_state(
