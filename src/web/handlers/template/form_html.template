@@ -1,0 +1,11 @@
+<a href="/_list"> Url Lists </a> <br />
+<form action="/_/" method="post">
+  <label for="alias">Alias:</label><br />
+  <input type="text" id="alias" name="alias" value=""><br />
+  <label for="url">Url:</label><br />
+  <input type="text" id="url" name="url" value=""><br /><br />
+  <input type="submit" value="Submit">
+</form>
+<script>
+document.getElementById("alias").value = window.location.search.substr(1);
+</script>

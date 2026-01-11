@@ -24,7 +24,7 @@ use crate::Record;
 // GET "/"
 //
 pub async fn form() -> impl IntoResponse {
-    Html(FORM_HTML)
+    Html(include_str!("template/form_html.template"))
 }
 
 pub fn handle_non_exist(alias: &str) -> impl IntoResponse {
@@ -99,7 +99,7 @@ pub async fn get(State(state): State<AppState>, Path(alias): Path<String>) -> im
 
     match result {
         Ok(Some(record)) => Html(format!(
-            include_str!("template/get_form_html.inc"),
+            include_str!("template/get_form_html.template"),
             alias = record.name().to_str().unwrap(),
             url = record.url().to_str().unwrap(),
             owner = record.owner().to_str().unwrap(),
@@ -195,7 +195,7 @@ pub async fn debug(
 
 /// GET "/_login"
 pub async fn login_form() -> impl IntoResponse {
-    Html(LOG_IN_HTML)
+    Html(include_str!("template/login_form_html.template"))
 }
 
 /// POST "/_login"
@@ -249,26 +249,3 @@ pub async fn list(
         Ok(records) => render_list_html(records).into_response(),
     }
 }
-
-const FORM_HTML: &str = r#"
-<form action="/_/" method="post">
-  <label for="alias">Alias:</label><br />
-  <input type="text" id="alias" name="alias" value=""><br />
-  <label for="url">Url:</label><br />
-  <input type="text" id="url" name="url" value=""><br /><br />
-  <input type="submit" value="Submit">
-</form>
-<script>
-document.getElementById("alias").value = window.location.search.substr(1);
-</script>
-"#;
-
-const LOG_IN_HTML: &str = r#"
-<form action="/_login" method="post">
-  <label for="fname">User Name:</label><br />
-  <input type="text" id="username" name="username" value=""><br />
-  <label for="password">Password:</label><br />
-  <input type="password" id="password" name="password" value=""><br /><br />
-  <input type="submit" value="Submit">
-</form>
-"#;
