@@ -1,0 +1,14 @@
+<form action="/_/" method="post">
+  <label for="alias">Alias:</label><br />
+  <input type="text" id="alias" name="alias" value="{{ alias }}"><br />
+  <label for="url">Url:</label><br />
+  <input type="text" id="url" name="url" value="{{ url }}"><br /><br />
+  <input type="submit" value="Submit">
+</form>
+Owner: {{ owner }} <br />
+<h2>Change History</h2>
+<ul>
+{% for change in change_history %}
+  <li>Changed by: {{ change.changed_by }} | URL before: {{ change.url_before }} | URL after: {{ change.url_after }}</li>
+{% endfor %}
+</ul>

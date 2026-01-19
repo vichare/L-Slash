@@ -1,5 +1,6 @@
 pub mod http;
 pub mod misc;
+pub mod tera;
 
 use axum::extract::Path;
 use axum::extract::Query;
@@ -9,7 +10,7 @@ use axum::response::Html;
 use axum::response::IntoResponse;
 use axum::Form;
 use axum_extra::extract::cookie::CookieJar;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::vec::Vec;
 
 use crate::services::auth::LogInRequest;
@@ -19,6 +20,13 @@ use crate::services::url::ListQuery;
 use crate::state::AppState;
 use crate::web::middleware::auth_cookie::AuthSession;
 use crate::Record;
+
+#[derive(Serialize)]
+struct RecordChangeView {
+    changed_by: String,
+    url_before: String,
+    url_after: String,
+}
 
 //
 // GET "/"
@@ -81,32 +89,35 @@ pub async fn get(State(state): State<AppState>, Path(alias): Path<String>) -> im
 
     let result = sled_store.records.look_up(&alias);
 
-    let change_history_result = sled_store.record_changes.prefix(format!("{}/", alias));
-
-    // Render change history.
-    let mut change_history_html = String::from("<h2>Change History</h2><ul>");
-    for change_result in change_history_result {
-        if let Ok(change) = change_result {
-            change_history_html += &format!(
-                "<li>Changed by: {} | URL before: {} | URL after: {}</li>",
-                change.changed_by(),
-                change.url_before(),
-                change.url_after()
-            );
-        }
-    }
-    change_history_html += "</ul>";
+    let change_history = sled_store
+        .record_changes
+        .prefix(format!("{}/", alias))
+        .filter_map(|r| r.ok())
+        .map(|change| RecordChangeView {
+            changed_by: change.changed_by().to_string(),
+            url_before: change.url_before().to_string(),
+            url_after: change.url_after().to_string(),
+        })
+        .collect::<Vec<_>>();
 
     match result {
-        Ok(Some(record)) => Html(format!(
-            include_str!("template/get_form_html.template"),
-            alias = record.name().to_str().unwrap(),
-            url = record.url().to_str().unwrap(),
-            owner = record.owner().to_str().unwrap(),
-            change_history_html = change_history_html,
-        )),
+        Ok(Some(record)) => {
+            let mut context = ::tera::Context::new();
+            context.insert("alias", record.name().to_str().unwrap());
+            context.insert("url", record.url().to_str().unwrap());
+            context.insert("owner", record.owner().to_str().unwrap());
+            context.insert("change_history", &change_history);
+
+            match tera::TEMPLATES.render("get_form.tera", &context) {
+                Ok(html) => Html(html).into_response(),
+                Err(e) => {
+                    eprintln!("Template rendering error: {}", e);
+                    Html(format!("Error rendering template: {}", e)).into_response()
+                }
+            }
+        }
         // TODO: handle errors properly.
-        Ok(None) | Err(_) => Html(format!("Record {alias} not found.")),
+        Ok(None) | Err(_) => Html(format!("Record {alias} not found.")).into_response(),
     }
 }
 
